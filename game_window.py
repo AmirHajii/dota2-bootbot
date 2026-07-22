@@ -3,17 +3,15 @@ import pygetwindow as gw
 
 class GameWindow:
 
-    def __init__(self, title):
-        self.search_title = title
-
+    def __init__(self):
         self.title = None
         self.left = 0
         self.top = 0
         self.width = 0
         self.height = 0
 
-    def find(self):
-        windows = gw.getWindowsWithTitle(self.search_title)
+    def find(self, title):
+        windows = gw.getWindowsWithTitle(title)
 
         if not windows:
             return False

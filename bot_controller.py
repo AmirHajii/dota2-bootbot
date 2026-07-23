@@ -1,4 +1,5 @@
 from game_state import GameState
+import time
 
 
 class BotController:
@@ -18,25 +19,7 @@ class BotController:
         self.matcher = matcher
         self.position_tracker = position_tracker
 
-
-    def find_object(
-        self,
-        image,
-        template
-    ):
-
-        result = self.matcher.find(
-            image,
-            template
-        )
-
-        if result["found"]:
-
-            return result["center"]
-
-
-        return None
-
+        self.game_over_start_time = None
 
     def update(
         self,
@@ -44,78 +27,81 @@ class BotController:
         space_ready_template,
         aiming_template,
         cart_template,
-        shoe_template
+        shoe_template,
+        game_over_template=None,
+        pause_template=None
     ):
 
         state = self.game_manager.get_state()
 
+        if pause_template is not None:
+            paused = self.state_detector.detect_pause(image, pause_template)
+            if paused:
+                if state != GameState.PAUSED:
+                    self.game_manager.set_state(GameState.PAUSED)
+                    print("PAUSED")
+                return state
+            if state == GameState.PAUSED:
+                self.game_manager.set_state(GameState.WAIT_FOR_NEW_LEVEL)
+                print("RESUME")
+                state = GameState.WAIT_FOR_NEW_LEVEL
 
-        # شروع مرحله
         if state == GameState.WAIT_FOR_NEW_LEVEL:
 
-
-            if self.state_detector.detect_space_ready(
-                image,
-                space_ready_template
-            ):
-
+            if self.state_detector.detect_space_ready(image, space_ready_template):
+                print("SPACE 1 - START")
                 self.keyboard.press_space()
+                self.game_manager.set_state(GameState.AIMING)
 
-                self.game_manager.set_state(
-                    GameState.AIMING
-                )
-
-
-        # نشانه گیری
         elif state == GameState.AIMING:
 
-
-            if self.state_detector.detect_aiming(
-                image,
-                aiming_template
-            ):
-
+            if self.state_detector.detect_aiming(image, aiming_template):
+                print("SPACE 2 - THROW")
                 self.keyboard.press_space()
+                self.game_manager.set_state(GameState.THROWING)
 
-                self.game_manager.set_state(
-                    GameState.THROWING
-                )
-
-
-        # دنبال کردن کفش
         elif state == GameState.THROWING:
 
+            if game_over_template is not None and self.state_detector.detect_game_over(
+                image, game_over_template
+            ):
+                print("GAME OVER")
+                self.game_manager.set_state(GameState.GAME_OVER)
+                self.game_over_start_time = time.time()
+            else:
+                self._track_and_position(image, shoe_template, cart_template, space_ready_template)
 
-            cart_position = self.find_object(
-                image,
-                cart_template
-            )
+        elif state == GameState.GAME_OVER:
 
+            waiting = False
+            if self.game_over_start_time:
+                waiting = time.time() - self.game_over_start_time > 2.0
 
-            shoe_position = self.find_object(
-                image,
-                shoe_template
-            )
-
-
-            if cart_position and shoe_position:
-
-
-                direction = self.position_tracker.get_direction(
-                    cart_position,
-                    shoe_position
-                )
-
-
-                print(
-                    "Direction:",
-                    direction
-                )
-
-
-                self.keyboard.move(
-                    direction
-                )
-
+            if waiting and self.state_detector.detect_space_ready(
+                image, space_ready_template
+            ):
+                print("RESTART")
+                self.keyboard.press_space()
+                self.game_manager.set_state(GameState.AIMING)
+                self.game_over_start_time = None
 
         return self.game_manager.get_state()
+
+    def _track_and_position(self, image, shoe_template, cart_template, space_ready_template):
+
+        if self.state_detector.detect_space_ready(image, space_ready_template):
+            print("CAUGHT - NEXT LEVEL")
+            self.keyboard.press_space()
+            self.game_manager.set_state(GameState.AIMING)
+            return
+
+        cart_result = self.state_detector.detect_cart(image, cart_template)
+        shoe_result = self.state_detector.detect_shoe(image, shoe_template)
+
+        if cart_result["found"] and shoe_result["found"]:
+            direction = self.position_tracker.get_direction(
+                cart_result["center"],
+                shoe_result["center"]
+            )
+            print("Direction:", direction)
+            self.keyboard.move(direction)

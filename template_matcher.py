@@ -6,7 +6,7 @@ from config import MATCH_THRESHOLD
 class TemplateMatcher:
 
     def __init__(self):
-        pass
+        self.threshold = MATCH_THRESHOLD
 
     def find(self, image, template):
 
@@ -18,19 +18,16 @@ class TemplateMatcher:
 
         _, max_value, _, max_location = cv2.minMaxLoc(result)
 
-        template_height, template_width = template.shape
+        h, w = template.shape[:2]
 
         x = max_location[0]
         y = max_location[1]
 
-        center_x = x + template_width // 2
-        center_y = y + template_height // 2
-
         return {
             "confidence": max_value,
             "location": (x, y),
-            "center": (center_x, center_y),
-            "width": template_width,
-            "height": template_height,
-            "found": max_value >= MATCH_THRESHOLD
+            "center": (x + w // 2, y + h // 2),
+            "width": w,
+            "height": h,
+            "found": max_value >= self.threshold
         }

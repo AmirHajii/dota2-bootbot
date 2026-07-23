@@ -8,7 +8,10 @@ class TemplateMatcher:
     def __init__(self):
         self.threshold = MATCH_THRESHOLD
 
-    def find(self, image, template):
+    def find(self, image, template, threshold=None):
+
+        if threshold is None:
+            threshold = self.threshold
 
         result = cv2.matchTemplate(
             image,
@@ -29,5 +32,5 @@ class TemplateMatcher:
             "center": (x + w // 2, y + h // 2),
             "width": w,
             "height": h,
-            "found": max_value >= self.threshold
+            "found": max_value >= threshold
         }

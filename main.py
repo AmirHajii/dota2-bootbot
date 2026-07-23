@@ -6,16 +6,15 @@ from game_window import GameWindow
 from dx_capture import DXCapture
 
 from template_matcher import TemplateMatcher
-
 from state_detector import StateDetector
 
 from game_manager import GameManager
-
 from keyboard_controller import KeyboardController
-
 from position_tracker import PositionTracker
+from trajectory_predictor import TrajectoryPredictor
 
 from bot_controller import BotController
+from debug_overlay import DebugOverlay
 
 
 def load_template(path):
@@ -34,11 +33,9 @@ def load_template(path):
     return template
 
 
-
 def main():
 
     game = GameWindow()
-
 
     if not game.find("Dota 2"):
 
@@ -46,26 +43,25 @@ def main():
         return
 
 
-
     capture = DXCapture(game)
 
-
     matcher = TemplateMatcher()
-
 
     detector = StateDetector(
         matcher
     )
 
-
     manager = GameManager()
 
-
-    keyboard = KeyboardController(game.handle)
-
+    keyboard = KeyboardController(
+        game.handle
+    )
 
     tracker = PositionTracker()
 
+    predictor = TrajectoryPredictor()
+
+    overlay = DebugOverlay()
 
     bot = BotController(
         manager,
@@ -80,40 +76,17 @@ def main():
         "templates/space_ready.png"
     )
 
-
     aiming = load_template(
         "templates/aiming.png"
     )
-
 
     cart = load_template(
         "templates/cart.png"
     )
 
-
     shoe = load_template(
         "templates/shoe.png"
     )
-
-    game_over = load_template(
-        "templates/game_over.png"
-    )
-
-    pause = load_template(
-        "templates/pause.png"
-    )
-
-
-
-    frame_count = 0
-    debug_saved = False
-
-    print(f"space_ready template size: {space_ready.shape}")
-    print(f"aiming template size: {aiming.shape}")
-    print(f"cart template size: {cart.shape}")
-    print(f"shoe template size: {shoe.shape}")
-    print(f"game_over template size: {game_over.shape}")
-    print(f"pause template size: {pause.shape}")
 
     while True:
 
@@ -122,38 +95,49 @@ def main():
         if frame is None:
             continue
 
-        frame_count += 1
-
         gray = cv2.cvtColor(
             frame,
             cv2.COLOR_BGR2GRAY
         )
 
-        if not debug_saved and frame_count == 10:
-            cv2.imwrite("debug_frame.png", frame)
-            print(f"Saved debug_frame.png - shape: {frame.shape}, mean pixel: {frame.mean():.1f}")
-            debug_saved = True
+        # ---------- DEBUG ----------
+        cart_result = detector.detect_cart(
+            gray,
+            cart
+        )
 
-        if frame_count % 30 == 0:
-            result = matcher.find(gray, space_ready)
-            print(
-                f"Frame {frame_count} | space_ready confidence: {result['confidence']:.3f} | "
-                f"frame shape: {frame.shape}"
-            )
+        shoe_result = detector.detect_shoe(
+            gray,
+            shoe
+        )
+
+        overlay.draw_match(
+            frame,
+            cart_result,
+            (0, 255, 0),
+            "Cart"
+        )
+
+        overlay.draw_match(
+            frame,
+            shoe_result,
+            (0, 0, 255),
+            "Shoe"
+        )
+        # ---------------------------
 
         state = bot.update(
             gray,
             space_ready,
             aiming,
             cart,
-            shoe,
-            game_over,
-            pause
+            shoe
         )
 
-        print("Current State:", state)
-
-
+        print(
+            "Current State:",
+            state
+        )
 
         if DEBUG:
 
@@ -162,15 +146,10 @@ def main():
                 frame
             )
 
-
             if cv2.waitKey(1) == ord("q"):
-
                 break
 
-
-
     cv2.destroyAllWindows()
-
 
 
 if __name__ == "__main__":

@@ -1,7 +1,13 @@
 class PositionTracker:
 
     def __init__(self):
-        pass
+
+        self.dead_zone = 20
+
+        self.fast_zone = 250
+
+        self.medium_zone = 120
+
 
 
     def get_direction(
@@ -13,20 +19,39 @@ class PositionTracker:
         cart_x = cart_position[0]
         shoe_x = shoe_position[0]
 
-
         distance = shoe_x - cart_x
 
 
-        if distance < -20:
+        if abs(distance) <= self.dead_zone:
 
-            return "LEFT"
+            return "STOP"
 
 
-        elif distance > 20:
+        if distance < 0:
 
-            return "RIGHT"
+            if abs(distance) > self.fast_zone:
+
+                return "LEFT_FAST"
+
+            elif abs(distance) > self.medium_zone:
+
+                return "LEFT"
+
+            else:
+
+                return "LEFT_SLOW"
 
 
         else:
 
-            return "STOP"
+            if abs(distance) > self.fast_zone:
+
+                return "RIGHT_FAST"
+
+            elif abs(distance) > self.medium_zone:
+
+                return "RIGHT"
+
+            else:
+
+                return "RIGHT_SLOW"

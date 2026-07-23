@@ -1,4 +1,15 @@
+import cv2
+
+
 class ImageProcessor:
 
-    def crop(self, image, x, y, width, height):
-        return image[y:y + height, x:x + width]
+    def __init__(self):
+        pass
+
+    def to_gray(self, image):
+        gray = cv2.cvtColor(
+            image,
+            cv2.COLOR_BGR2GRAY
+        )
+
+        return gray

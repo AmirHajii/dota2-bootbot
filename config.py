@@ -1,0 +1,2 @@
+DEBUG = True
+MATCH_THRESHOLD = 0.80
